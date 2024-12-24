@@ -1,4 +1,6 @@
 local cooline = CreateFrame('Button', nil, UIParent)
+local spelltracker = CreateFrame("Frame", "SpellTrackerFrame", UIParent)
+
 cooline:SetScript('OnEvent', function()
 	this[event]()
 end)
@@ -139,6 +141,78 @@ function cooline.clear_cooldown(name)
 	end
 end
 
+local function CreateSideTexture(xOffset, mirrored)
+    local texture = spelltracker:CreateTexture(nil, "OVERLAY")
+    texture:SetWidth(128) -- Width of the icon
+    texture:SetHeight(256) -- Height of the icon
+    texture:SetPoint("CENTER", UIParent, "CENTER", xOffset, 0) -- Offset on X-axis
+    texture:SetAlpha(0) -- Start invisible
+
+    -- Flip texture horizontally if mirrored
+    if mirrored then
+        texture:SetTexCoord(1, 0, 0, 1) -- Reverses the image horizontally
+    end
+
+    texture:Hide() -- Hidden initially
+	po_texture_up = false
+    return texture
+end
+
+local leftTexture = CreateSideTexture(-200, false) -- Left side, normal orientation
+local rightTexture = CreateSideTexture(200, true)  -- Right side, flipped horizontally
+
+-- Pulse Animation Variables
+local pulseAlpha = 0.3
+local pulseDirection = 0.01 -- Fade in speed
+local minScale = 0.8 -- Minimum scale multiplier
+local maxScale = 1.0 -- Maximum scale multiplier
+local baseWidth = 128 -- Base width of the texture
+local baseHeight = 256 -- Base height of the texture
+
+-- Function to hide textures
+local function HideTextures()
+    leftTexture:Hide()
+    rightTexture:Hide()
+end
+
+-- Function to show textures with the given texture path
+local function ShowTextures(texturePath)
+    leftTexture:SetTexture(texturePath)
+    rightTexture:SetTexture(texturePath)
+    leftTexture:Show()
+    rightTexture:Show()
+end
+
+-- OnUpdate script to create pulsing effect (opacity + manual scaling)
+spelltracker:SetScript("OnUpdate", function(self, elapsed)
+    -- Update alpha for pulse
+    pulseAlpha = pulseAlpha + pulseDirection
+
+    -- Reverse direction at boundaries
+    if pulseAlpha <= 0.3 then
+        pulseDirection = 0.01 -- Fade in
+    elseif pulseAlpha >= 0.8 then
+        pulseDirection = -0.01 -- Fade out
+    end
+
+    -- Calculate scale based on alpha
+    local scale = minScale + (pulseAlpha - 0.3) / 0.5 * (maxScale - minScale) -- Linear interpolation
+
+    -- Apply alpha and scale to both textures
+    if leftTexture:IsShown() and rightTexture:IsShown() then
+        leftTexture:SetAlpha(pulseAlpha)
+        rightTexture:SetAlpha(pulseAlpha)
+
+        -- Adjust width and height for scaling effect
+        local scaledWidth = baseWidth * scale
+        local scaledHeight = baseHeight * scale
+        leftTexture:SetWidth(scaledWidth)
+        leftTexture:SetHeight(scaledHeight)
+        rightTexture:SetWidth(scaledWidth)
+        rightTexture:SetHeight(scaledHeight)
+    end
+end)
+
 local relevel, throt = false, 0
 
 function getKeysSortedByValue(tbl, sortFunction)
@@ -190,12 +264,27 @@ do
 			local time_left = frame.end_time - GetTime()
 			isactive = isactive or time_left < 360
 
+			if name == "Power Overwhelming" and po_texture_up == false then
+				po_texture_up = true
+				ShowTextures("Interface\\AddOns\\cooline\\po.tga")
+				C_Timer.After(10, function()
+					HideTextures()
+				end)
+			end
+
 			if time_left < -1 then
 				throt = min(throt, 0.2)
 				isactive = true
 				cooline.clear_cooldown(name)
-				expire_announced_soulstone = false
-				expire_announced_soulfire = false
+				if name == "Major Soulstone" then
+					expire_announced_soulstone = false
+				end
+				if name == "Soul Fire" then
+					expire_announced_soulfire = false
+				end
+				if name == "Power Overwhelming" then
+					po_texture_up = false
+				end
 			elseif time_left < 0 then
 				cooline.update_cooldown(name, frame, 0, 0, relevel)
 				frame:SetAlpha(1 + time_left)  -- fades
