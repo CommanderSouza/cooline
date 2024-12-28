@@ -1,5 +1,6 @@
 local cooline = CreateFrame('Button', nil, UIParent)
 local spelltracker = CreateFrame("Frame", "SpellTrackerFrame", UIParent)
+local greaterdemon = CreateFrame("Frame", "GreaterDemonFrame", UIParent)
 
 cooline:SetScript('OnEvent', function()
 	this[event]()
@@ -141,6 +142,90 @@ function cooline.clear_cooldown(name)
 	end
 end
 
+local function CreateMidTexture()
+	local demontexture = greaterdemon:CreateTexture(nil, "OVERLAY")
+	demontexture:SetWidth(256) -- Width of the icon
+	demontexture:SetHeight(128) -- Height of the icon
+	demontexture:SetPoint("CENTER", UIParent, "CENTER", 0, 75) -- Offset on X-axis
+	demontexture:SetAlpha(0) -- Start invisible
+
+	demontexture:Hide() -- Hidden initially
+	gd_up = false
+	inferno_up = false
+	felguard_up = false
+	return demontexture
+end
+
+local midTexture = CreateMidTexture()
+
+local function HideMidTextures()
+	PlaySoundFile("Interface\\Sounds\\demon-voice.mp3")
+	midTexture:Hide()
+	gd_up = false
+end
+
+local function PreHideMidTextures()
+	PlaySoundFile("Interface\\Sounds\\demon.mp3")
+	C_Timer.After(8, function()
+		HideMidTextures()
+	end)
+end
+
+local function PrePreHideMidTextures()
+	PlaySoundFile("Interface\\Sounds\\demon.mp3")
+	C_Timer.After(8, function()
+		PreHideMidTextures()
+	end)
+end
+
+local function ShowMidTextures(texturePath)
+	midTexture:SetTexture(texturePath)
+	midTexture:Show()
+	C_Timer.After(30, function()
+		PrePreHideMidTextures()
+	end)
+end
+
+local function StartGreaterDemonTimer()
+    C_Timer.After(120, function()
+		ShowMidTextures("Interface\\AddOns\\cooline\\demon_breaking.tga")
+    end)
+end
+
+-- Pulse Animation Variables
+local demonpulseAlpha = 0.3
+local demonpulseDirection = 0.01 -- Fade in speed
+local demonminScale = 0.8 -- Minimum scale multiplier
+local demonmaxScale = 1.0 -- Maximum scale multiplier
+local demonbaseWidth = 256 -- Base width of the texture
+local demonbaseHeight = 128 -- Base height of the texture
+
+-- OnUpdate script to create pulsing effect (opacity + manual scaling)
+greaterdemon:SetScript("OnUpdate", function(self, elapsed)
+    -- Update alpha for pulse
+    demonpulseAlpha = demonpulseAlpha + demonpulseDirection
+
+    -- Reverse direction at boundaries
+    if demonpulseAlpha <= 0.3 then
+        demonpulseDirection = 0.01 -- Fade in
+    elseif demonpulseAlpha >= 0.8 then
+        demonpulseDirection = -0.01 -- Fade out
+    end
+
+    -- Calculate scale based on alpha
+    local demonscale = demonminScale + (demonpulseAlpha - 0.3) / 0.5 * (demonmaxScale - demonminScale) -- Linear interpolation
+
+    -- Apply alpha and scale to both textures
+    if midTexture:IsShown() then
+        midTexture:SetAlpha(demonpulseAlpha)
+
+        local demonscaledWidth = demonbaseWidth * demonscale
+        local demonscaledHeight = demonbaseHeight * demonscale
+        midTexture:SetWidth(demonscaledWidth)
+        midTexture:SetHeight(demonscaledHeight)
+    end
+end)
+
 local function CreateSideTexture(xOffset, mirrored)
     local texture = spelltracker:CreateTexture(nil, "OVERLAY")
     texture:SetWidth(128) -- Width of the icon
@@ -155,6 +240,7 @@ local function CreateSideTexture(xOffset, mirrored)
 
     texture:Hide() -- Hidden initially
 	po_texture_up = false
+	po_up = false
     return texture
 end
 
@@ -173,6 +259,7 @@ local baseHeight = 256 -- Base height of the texture
 local function HideTextures()
     leftTexture:Hide()
     rightTexture:Hide()
+	po_texture_up = false
 end
 
 -- Function to show textures with the given texture path
@@ -264,12 +351,26 @@ do
 			local time_left = frame.end_time - GetTime()
 			isactive = isactive or time_left < 360
 
-			if name == "Power Overwhelming" and po_texture_up == false then
+			if name == "Power Overwhelming" and po_texture_up == false and po_up == false then
 				po_texture_up = true
+				po_up = true
 				ShowTextures("Interface\\AddOns\\cooline\\po.tga")
 				C_Timer.After(10, function()
 					HideTextures()
 				end)
+			end
+
+			if name == "Inferno" and gd_up == false and inferno_up == false then
+				HideMidTextures()
+				inferno_up = true
+				gd_up = true
+				StartGreaterDemonTimer()
+			end
+			if name == "Demon Gate" and gd_up == false and felguard_up == false then
+				HideMidTextures()
+				felguard_up = true
+				gd_up = true
+				StartGreaterDemonTimer()
 			end
 
 			if time_left < -1 then
@@ -283,7 +384,13 @@ do
 					expire_announced_soulfire = false
 				end
 				if name == "Power Overwhelming" then
-					po_texture_up = false
+					po_up = false
+				end
+				if name == "Inferno" then
+					inferno_up = false
+				end
+				if name == "Demon Gate" then
+					felguard_up = false
 				end
 			elseif time_left < 0 then
 				cooline.update_cooldown(name, frame, 0, 0, relevel)
