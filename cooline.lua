@@ -159,20 +159,20 @@ end
 local midTexture = CreateMidTexture()
 
 local function HideMidTextures()
-	PlaySoundFile("Interface\\Sounds\\demon-voice.mp3")
+	PlaySoundFile("Interface\\AddOns\\cooline\\demon-voice.mp3")
 	midTexture:Hide()
 	gd_up = false
 end
 
 local function PreHideMidTextures()
-	PlaySoundFile("Interface\\Sounds\\demon.mp3")
+	PlaySoundFile("Interface\\AddOns\\cooline\\demon.mp3")
 	C_Timer.After(8, function()
 		HideMidTextures()
 	end)
 end
 
 local function PrePreHideMidTextures()
-	PlaySoundFile("Interface\\Sounds\\demon.mp3")
+	PlaySoundFile("Interface\\AddOns\\cooline\\demon.mp3")
 	C_Timer.After(8, function()
 		PreHideMidTextures()
 	end)
