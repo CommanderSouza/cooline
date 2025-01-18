@@ -12,6 +12,11 @@ cooline_settings = { x = 0, y = -240 }
 local frame_pool = {}
 local cooldowns = {}
 
+local expire_announced_soulstone = false
+local expire_announced_soulfire = false
+local po_texture_up = false
+local po_up = false
+
 function cooline.hyperlink_name(hyperlink)
     local _, _, name = strfind(hyperlink, '|Hitem:%d+:%d+:%d+:%d+|h[[]([^]]+)[]]|h')
     return name
@@ -154,8 +159,6 @@ local function CreateSideTexture(xOffset, mirrored)
     end
 
     texture:Hide() -- Hidden initially
-	po_texture_up = false
-	po_up = false
     return texture
 end
 
@@ -174,7 +177,6 @@ local baseHeight = 256 -- Base height of the texture
 local function HideTextures()
     leftTexture:Hide()
     rightTexture:Hide()
-	po_texture_up = false
 end
 
 -- Function to show textures with the given texture path
@@ -270,7 +272,13 @@ do
 				po_up = true
 				ShowTextures("Interface\\AddOns\\cooline\\po.tga")
 				C_Timer.After(10, function()
+					-- effect duration
 					HideTextures()
+					po_texture_up = false
+				end)
+				C_Timer.After(14, function()
+					-- cooldown duration
+					po_up = false
 				end)
 			end
 
@@ -280,12 +288,6 @@ do
 				cooline.clear_cooldown(name)
 				if name == "Major Soulstone" then
 					expire_announced_soulstone = false
-				end
-				if name == "Soul Fire" then
-					expire_announced_soulfire = false
-				end
-				if name == "Power Overwhelming" then
-					po_up = false
 				end
 			elseif time_left < 0 then
 				cooline.update_cooldown(name, frame, 0, 0, relevel)
@@ -307,6 +309,10 @@ do
 				if name == "Soul Fire" and expire_announced_soulfire == false then
 					PlaySoundFile("Interface\\Sounds\\fire.mp3")
 					expire_announced_soulfire = true
+					C_Timer.After(30, function()
+						-- cooldown duration
+						expire_announced_soulfire = false
+					end)
 				end
 			elseif time_left < 10 then
 				cooline.update_cooldown(name, frame, cooline.section * (time_left + 11) * 0.14286, time_left > 4 and 0.05 or 0.02, relevel)  -- 2 + (time_left - 3) / 7
